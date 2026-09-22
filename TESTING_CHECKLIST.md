@@ -1,13 +1,32 @@
 # CMM-Gen Testing Checklist
 
-Use this after running `launch.bat` (Windows) or `launch.sh` (macOS/Linux).
-Work through it top to bottom -- each section builds on the one before it.
+Pick one path, then work through the rest of this checklist top to bottom --
+each section builds on the one before it.
+
+- **No install (Windows, CLI only):** download `cmm-gen.exe` and use it
+  directly wherever `python -m cmm_gen.cli` appears below (e.g.
+  `cmm-gen.exe parse-cad --step ...` instead of
+  `python -m cmm_gen.cli parse-cad --step ...`). Skip section 2 (no venv to
+  run pytest/ruff/mypy in) and the visualizer parts of section 3 (not
+  bundled into the exe -- see README "Setup").
+- **Source install (adds the visualizer):** run `launch.bat` (Windows) or
+  `launch.sh` (macOS/Linux) first.
 
 ## 1. Install & smoke test
 
+**No-install exe:**
+- [ ] Download link works and the file is close to 300MB (it bundles
+      OpenCascade's native libraries -- if it's much smaller, the download
+      was truncated).
+- [ ] `cmm-gen.exe parse-cad --step tests\fixtures\sample_part.step` prints
+      13 features (8 planes, 2 cylinders, 1 cone, 1 slot, 1 circle). Note:
+      you'll need the `tests\fixtures\sample_part.step` file from the repo
+      (or point `--step` at your own part) since the exe doesn't bundle it.
+
+**Source install:**
 - [ ] `launch.bat` / `launch.sh` completes with no red `[ERROR]` lines.
-- [ ] The smoke test table prints 13 features (8 planes, 2 cylinders, 1 cone,
-      1 slot, 1 circle) for `tests/fixtures/sample_part.step`.
+- [ ] The smoke test table prints the same 13 features for
+      `tests/fixtures/sample_part.step`.
 - [ ] The Streamlit visualizer opens at `http://localhost:8501` in your
       browser (the script launches it automatically after the smoke test).
 
@@ -38,6 +57,9 @@ With the virtual environment active (`.venv\Scripts\activate` on Windows,
       and its approximate geometry -- see **Known limitations** below.
 
 ## 4. CLI: GD&T extraction (needs `ANTHROPIC_API_KEY`)
+
+Using the exe, replace `python -m cmm_gen.cli` with `cmm-gen.exe` below (and
+`set` instead of `export` is already the Windows form):
 
 ```
 set ANTHROPIC_API_KEY=sk-ant-...        (Windows)

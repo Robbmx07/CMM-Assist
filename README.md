@@ -44,10 +44,21 @@ isolation against the shared schema.
 
 ## Setup
 
-**Quickest path:** run `launch.bat` (Windows) or `launch.sh` (macOS/Linux)
-from the project root. It creates a virtual environment, installs
-dependencies, runs a smoke test against the bundled sample part, and opens
-the Streamlit visualizer. Then work through `TESTING_CHECKLIST.md`.
+**No install (Windows, CLI only):** download `cmm-gen.exe` --
+https://github.com/Robbmx07/CMM-Assist/releases/download/windows-exe-latest/cmm-gen.exe
+-- and run it directly from a terminal (`cmm-gen.exe --help`). It's a
+PyInstaller-packaged single file (~300MB, since it bundles CadQuery's
+OpenCascade libraries) rebuilt and smoke-tested on a real Windows GitHub
+Actions runner on every push -- see `.github/workflows/build-windows-exe.yml`.
+It covers `parse-cad` / `extract-gdt` / `generate`; the Streamlit visualizer
+isn't bundled (it doesn't package reliably into a single-file build) --
+use the source install below for that.
+
+**Source install, with visualizer:** run `launch.bat` (Windows) or
+`launch.sh` (macOS/Linux) from the project root. It creates a virtual
+environment, installs dependencies, runs a smoke test against the bundled
+sample part, and opens the Streamlit visualizer. Then work through
+`TESTING_CHECKLIST.md`.
 
 Manual setup:
 
@@ -60,12 +71,15 @@ export ANTHROPIC_API_KEY=...   # required for gdt_extractor
 
 ## CLI
 
+Using the source install (`python -m cmm_gen.cli ...`) or the standalone
+`cmm-gen.exe` -- the commands are the same either way, just swap the prefix:
+
 ```bash
 python -m cmm_gen.cli parse-cad --step part.step
 python -m cmm_gen.cli extract-gdt --blueprint part.pdf --step part.step
 python -m cmm_gen.cli generate --step part.step --blueprint part.pdf --out part.prg \
     --probe HH-A-T5 --machine default
-python -m cmm_gen.cli visualize
+python -m cmm_gen.cli visualize          # source install only, see Setup above
 ```
 
 `generate` runs the full pipeline (parse -> extract & map GD&T -> validate

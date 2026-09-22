@@ -3,10 +3,12 @@
 import pytest
 
 from cmm_gen.kinematics_validator import (
+    KinematicsValidationError,
     candidate_approach_vectors,
     check_collision,
     check_head_angle_feasible,
     check_travel_limits,
+    load_machine_envelope,
     load_probe_config,
     validate_feature,
 )
@@ -154,3 +156,48 @@ def test_check_travel_limits_direct() -> None:
     ok, reason = check_travel_limits(Vector3(x=50, y=5, z=5), envelope)
     assert not ok
     assert "travel envelope" in reason
+
+
+def test_load_probe_config_honors_custom_library_path(tmp_path) -> None:
+    # Regression/coverage test: this is the exact mechanism the standalone
+    # .exe's --probe-library flag depends on -- the bundled config is baked
+    # into the binary at build time, so overriding it by pointing at a
+    # different file on disk is the only way exe users can ever replace the
+    # placeholder probe specs with their real datasheet values.
+    custom_library = tmp_path / "probe_library.yaml"
+    custom_library.write_text(
+        """
+probes:
+  MY-CUSTOM-PROBE:
+    verified: true
+    head_type: fixed
+    tip:
+      diameter_mm: 1.5
+      stylus_length_mm: 12.0
+    a_angle_range_deg: [0.0, 0.0]
+    b_angle_range_deg: [0.0, 0.0]
+"""
+    )
+    probe = load_probe_config("MY-CUSTOM-PROBE", library_path=custom_library)
+    assert probe.tip.diameter_mm == 1.5
+    assert probe.tip.stylus_length_mm == 12.0
+
+    with pytest.raises(KinematicsValidationError):
+        load_probe_config("HH-A-T5", library_path=custom_library)  # not in this file
+
+
+def test_load_machine_envelope_honors_custom_library_path(tmp_path) -> None:
+    custom_library = tmp_path / "machine_envelope.yaml"
+    custom_library.write_text(
+        """
+machines:
+  MY-MACHINE:
+    verified: true
+    x_travel_mm: [-10.0, 10.0]
+    y_travel_mm: [-20.0, 20.0]
+    z_travel_mm: [-5.0, 5.0]
+"""
+    )
+    envelope = load_machine_envelope("MY-MACHINE", library_path=custom_library)
+    assert envelope.x_travel_mm == (-10.0, 10.0)
+    assert envelope.z_travel_mm == (-5.0, 5.0)

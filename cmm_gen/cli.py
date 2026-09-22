@@ -76,8 +76,26 @@ def generate(
     step: Path = typer.Option(..., exists=True),
     blueprint: Path = typer.Option(..., exists=True),
     out: Path = typer.Option(..., help="Output .PRG path"),
-    probe: str = typer.Option("HH-A-T5", help="Probe name from config/probe_library.yaml"),
-    machine: str = typer.Option("default", help="Machine name from config/machine_envelope.yaml"),
+    probe: str = typer.Option("HH-A-T5", help="Probe name from the probe library"),
+    machine: str = typer.Option("default", help="Machine name from the machine envelope library"),
+    probe_library: Path = typer.Option(
+        None,
+        exists=True,
+        help=(
+            "Path to a probe_library.yaml overriding the bundled defaults -- "
+            "required if you're running the standalone .exe, since the "
+            "bundled config/probe_library.yaml is baked in at build time "
+            "and editing a copy elsewhere on disk otherwise has no effect."
+        ),
+    ),
+    machine_library: Path = typer.Option(
+        None,
+        exists=True,
+        help=(
+            "Path to a machine_envelope.yaml overriding the bundled "
+            "defaults -- same reasoning as --probe-library."
+        ),
+    ),
 ) -> None:
     """Full pipeline: parse -> extract GD&T -> validate kinematics -> generate PC-DMIS.
 
@@ -109,8 +127,13 @@ def generate(
             table.add_row(c.id, c.characteristic.value)
         console.print(table)
 
-    probe_config = kinematics_validator.load_probe_config(probe)
-    envelope = kinematics_validator.load_machine_envelope(machine)
+    probe_config = kinematics_validator.load_probe_config(
+        probe, library_path=probe_library or kinematics_validator.DEFAULT_PROBE_LIBRARY_PATH
+    )
+    envelope = kinematics_validator.load_machine_envelope(
+        machine,
+        library_path=machine_library or kinematics_validator.DEFAULT_MACHINE_ENVELOPE_PATH,
+    )
 
     all_vectors = [
         kinematics_validator.validate_feature(f, probe_config, envelope, part_bbox)
