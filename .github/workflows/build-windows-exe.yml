@@ -12,6 +12,9 @@ on:
       - "packaging/cmm-gen.spec"
       - ".github/workflows/build-windows-exe.yml"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -42,3 +45,22 @@ jobs:
           name: cmm-gen-windows-exe
           path: dist/cmm-gen.exe
           if-no-files-found: error
+
+      # Actions-artifact downloads redirect through Azure Blob Storage, which
+      # isn't reachable from every environment that wants this file (e.g. a
+      # policy-restricted sandbox). A release asset is a stable, direct
+      # github.com download link instead -- one canonical "latest" release
+      # whose asset this step replaces on every build, rather than piling up
+      # a new release per run.
+      - name: Publish to the "windows-exe-latest" release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view windows-exe-latest --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create windows-exe-latest `
+              --repo $env:GITHUB_REPOSITORY `
+              --title "CMM-Gen Windows CLI (latest)" `
+              --notes "Standalone Windows executable (cmm-gen.exe), auto-built and smoke-tested from the latest commit on branch $env:GITHUB_REF_NAME. See TESTING_CHECKLIST.md for how to use it. This asset is replaced on every build -- it is not a versioned release."
+          }
+          gh release upload windows-exe-latest dist/cmm-gen.exe --repo $env:GITHUB_REPOSITORY --clobber
