@@ -44,6 +44,13 @@ isolation against the shared schema.
 
 ## Setup
 
+**Quickest path:** run `launch.bat` (Windows) or `launch.sh` (macOS/Linux)
+from the project root. It creates a virtual environment, installs
+dependencies, runs a smoke test against the bundled sample part, and opens
+the Streamlit visualizer. Then work through `TESTING_CHECKLIST.md`.
+
+Manual setup:
+
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
