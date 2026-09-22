@@ -250,77 +250,106 @@ def _round_key(point: Vector3, radius: float) -> tuple[float, float, float, floa
     )
 
 
+def _partial_cylinder_center(pc: _PartialCylinder) -> Vector3:
+    return _axis_point_at(pc.axis_location, pc.axis_direction, (pc.v_min + pc.v_max) / 2)
+
+
+def _nearest_compatible(
+    i: int, pool: set[int], candidates: list[_PartialCylinder]
+) -> int | None:
+    """Nearest candidate to `i` (by axis-center distance) among `pool`,
+    restricted to matching radius + parallel axis -- the geometric
+    prerequisites for being the two end-caps of one slot."""
+    a = candidates[i]
+    a_center = _partial_cylinder_center(a)
+    best_j, best_dist = None, math.inf
+    for j in pool:
+        if j == i:
+            continue
+        b = candidates[j]
+        if abs(a.radius - b.radius) > _LENGTH_TOL_MM:
+            continue
+        if not _directions_parallel(a.axis_direction, b.axis_direction):
+            continue
+        dist = _distance(a_center, _partial_cylinder_center(b))
+        if dist < best_dist:
+            best_dist, best_j = dist, j
+    return best_j
+
+
+def _build_slot_feature(
+    a: _PartialCylinder, b: _PartialCylinder, ids: _IdAllocator
+) -> CADFeature:
+    a_center = _partial_cylinder_center(a)
+    b_center = _partial_cylinder_center(b)
+    midpoint = Vector3(
+        x=(a_center.x + b_center.x) / 2,
+        y=(a_center.y + b_center.y) / 2,
+        z=(a_center.z + b_center.z) / 2,
+    )
+    length = _distance(a_center, b_center)
+    if length < _LENGTH_TOL_MM:
+        long_axis = a.axis_direction
+    else:
+        long_axis = Vector3(
+            x=(b_center.x - a_center.x) / length,
+            y=(b_center.y - a_center.y) / length,
+            z=(b_center.z - a_center.z) / length,
+        )
+    return CADFeature(
+        id=ids.next_id(FeatureType.SLOT),
+        type=FeatureType.SLOT,
+        nominal_location=midpoint,
+        nominal_vector=long_axis,
+        diameter=a.radius * 2,
+        depth=abs(a.v_max - a.v_min),
+        bounding_box=None,
+    )
+
+
 def _pair_slot_candidates(
     candidates: list[_PartialCylinder], ids: _IdAllocator
 ) -> list[CADFeature]:
-    """Pair up half-cylindrical end-cap faces into SLOT features by matching
-    radius + parallel axis direction, then choosing mutually-nearest
-    unmatched partners. Faces that can't be paired are logged and skipped.
+    """Pair up half-cylindrical end-cap faces into SLOT features.
+
+    Two candidates are paired only when they are each other's nearest
+    compatible match (mutual nearest neighbor), not just whichever is
+    nearest from one side -- a simple greedy "nearest from i" pass can
+    mis-pair end-caps across two closely-spaced parallel slots (matching A's
+    end to B's end instead of A's own far end) without ever logging a
+    warning, since every candidate still finds *some* match. Requiring
+    mutuality catches that case: a wrong cross-pairing is asymmetric (A's
+    nearest is B, but B's nearest is its own true partner), so it's skipped
+    and both ends fall through to the "could not be paired" warning instead
+    of silently producing two wrong slots.
     """
     slots: list[CADFeature] = []
-    used: set[int] = set()
+    remaining = set(range(len(candidates)))
 
-    for i, a in enumerate(candidates):
-        if i in used:
-            continue
-        best_j = None
-        best_dist = math.inf
-        a_center = _axis_point_at(a.axis_location, a.axis_direction, (a.v_min + a.v_max) / 2)
-
-        for j, b in enumerate(candidates):
-            if j == i or j in used:
+    progressed = True
+    while progressed and len(remaining) > 1:
+        progressed = False
+        for i in sorted(remaining):
+            j = _nearest_compatible(i, remaining, candidates)
+            if j is None:
                 continue
-            if abs(a.radius - b.radius) > _LENGTH_TOL_MM:
-                continue
-            if not _directions_parallel(a.axis_direction, b.axis_direction):
-                continue
-            b_center = _axis_point_at(b.axis_location, b.axis_direction, (b.v_min + b.v_max) / 2)
-            dist = _distance(a_center, b_center)
-            if dist < best_dist:
-                best_dist = dist
-                best_j = j
+            back = _nearest_compatible(j, remaining, candidates)
+            if back != i:
+                continue  # not mutual -- leave both for a later/no pairing
+            slots.append(_build_slot_feature(candidates[i], candidates[j], ids))
+            remaining.discard(i)
+            remaining.discard(j)
+            progressed = True
+            break  # restart the scan since `remaining` changed
 
-        if best_j is None:
-            logger.warning(
-                "Partial cylindrical face at {} (r={:.3f}) could not be paired "
-                "into a SLOT feature; skipping.",
-                a_center.as_tuple(),
-                a.radius,
-            )
-            used.add(i)
-            continue
-
-        b = candidates[best_j]
-        b_center = _axis_point_at(b.axis_location, b.axis_direction, (b.v_min + b.v_max) / 2)
-        midpoint = Vector3(
-            x=(a_center.x + b_center.x) / 2,
-            y=(a_center.y + b_center.y) / 2,
-            z=(a_center.z + b_center.z) / 2,
+    for i in remaining:
+        a = candidates[i]
+        logger.warning(
+            "Partial cylindrical face at {} (r={:.3f}) could not be paired "
+            "into a SLOT feature; skipping.",
+            _partial_cylinder_center(a).as_tuple(),
+            a.radius,
         )
-        length = _distance(a_center, b_center)
-        if length < _LENGTH_TOL_MM:
-            long_axis = a.axis_direction
-        else:
-            long_axis = Vector3(
-                x=(b_center.x - a_center.x) / length,
-                y=(b_center.y - a_center.y) / length,
-                z=(b_center.z - a_center.z) / length,
-            )
-        depth = abs(a.v_max - a.v_min)
-
-        slots.append(
-            CADFeature(
-                id=ids.next_id(FeatureType.SLOT),
-                type=FeatureType.SLOT,
-                nominal_location=midpoint,
-                nominal_vector=long_axis,
-                diameter=a.radius * 2,
-                depth=depth,
-                bounding_box=None,
-            )
-        )
-        used.add(i)
-        used.add(best_j)
 
     return slots
 

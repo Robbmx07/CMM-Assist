@@ -32,6 +32,7 @@ _FEATURE_COLORS = {
 }
 
 
+@st.cache_data
 def _load_probe_names() -> list[str]:
     import yaml
 
@@ -41,6 +42,7 @@ def _load_probe_names() -> list[str]:
     return sorted(data.get("probes", {}))
 
 
+@st.cache_data
 def _load_machine_names() -> list[str]:
     import yaml
 
@@ -140,8 +142,9 @@ if run:
         st.session_state["error"] = f"STEP file not found: {step_path}"
     else:
         try:
-            features = cad_parser.parse_step_file(step_path)
-            part_bbox = cad_parser.compute_bounding_box(cad_parser.load_step_file(step_path))
+            shape = cad_parser.load_step_file(step_path)
+            features = cad_parser.extract_features(shape)
+            part_bbox = cad_parser.compute_bounding_box(shape)
             st.session_state["features"] = features
             st.session_state["part_bbox"] = part_bbox
             st.session_state["error"] = None

@@ -196,7 +196,7 @@ def _feature_hit_points(feature: CADFeature) -> list[tuple[Vector3, Vector3]]:
         radius = (feature.diameter or 0.0) / 2
         depth = feature.depth or 0.0
         axis = _normalize(feature.nominal_vector)
-        if feature.diameter and depth / feature.diameter < _CIRCLE_VS_CYLINDER_DEPTH_RATIO:
+        if _is_circle_like_cylinder(feature):
             return _circle_hit_points(feature.nominal_location, axis, radius, _HITS_PER_CIRCLE)
         points: list[tuple[Vector3, Vector3]] = []
         for level in range(_LEVELS_PER_CYLINDER):
@@ -237,12 +237,22 @@ def _feature_hit_points(feature: CADFeature) -> list[tuple[Vector3, Vector3]]:
     return []
 
 
+def _is_circle_like_cylinder(feature: CADFeature) -> bool:
+    """True if a CYLINDER CADFeature is shallow enough (relative to its
+    diameter) to measure as a PC-DMIS CIRCLE feature instead of a full
+    multi-level CYLINDER scan. Single source of truth for this heuristic --
+    both the hit-pattern generator and the FEAT/ type-name emitter must
+    agree, or the emitted feature type and its hit pattern would disagree.
+    """
+    if feature.type != FeatureType.CYLINDER or not feature.diameter:
+        return False
+    depth = feature.depth or 0.0
+    return depth / feature.diameter < _CIRCLE_VS_CYLINDER_DEPTH_RATIO
+
+
 def _pcdmis_feature_type(feature: CADFeature) -> str:
     if feature.type == FeatureType.CYLINDER:
-        depth = feature.depth or 0.0
-        if feature.diameter and depth / feature.diameter < _CIRCLE_VS_CYLINDER_DEPTH_RATIO:
-            return "CIRCLE"
-        return "CYLINDER"
+        return "CIRCLE" if _is_circle_like_cylinder(feature) else "CYLINDER"
     return str(feature.type.value)
 
 
@@ -311,10 +321,23 @@ def emit_clearance_move(point: Vector3, direction: Vector3) -> str:
     return f"MOVE/POINT,{_fmt_vec(point)},{_fmt_vec(_normalize(direction))}"
 
 
-def emit_safe_start_move(routine: InspectionRoutine, safe_z: float = _DEFAULT_SAFE_Z_MM) -> str:
-    return emit_clearance_move(
-        Vector3(x=0, y=0, z=safe_z), Vector3(x=0, y=0, z=-1)
-    )
+def emit_safe_start_move(routine: InspectionRoutine, safe_z: float | None = None) -> str:
+    """Emit the routine's opening retract-to-safe-Z move.
+
+    `safe_z` defaults to as high as possible without exceeding the machine's
+    actual Z travel limit -- a hardcoded default (e.g. 100mm) would silently
+    emit a program that violates travel limits on its very first line on any
+    machine with a smaller working envelope.
+    """
+    z_min, z_max = routine.machine_envelope.z_travel_mm
+    if safe_z is None:
+        safe_z = min(_DEFAULT_SAFE_Z_MM, z_max)
+    if not z_min <= safe_z <= z_max:
+        raise RoutineGenerationError(
+            f"Safe start Z={safe_z} is outside the machine's Z travel range "
+            f"({z_min}, {z_max})."
+        )
+    return emit_clearance_move(Vector3(x=0, y=0, z=safe_z), Vector3(x=0, y=0, z=-1))
 
 
 # --------------------------------------------------------------------------

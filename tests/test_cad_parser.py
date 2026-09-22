@@ -56,3 +56,22 @@ def test_slot_geometry(features) -> None:
 def test_feature_ids_are_unique(features) -> None:
     ids = [f.id for f in features]
     assert len(ids) == len(set(ids))
+
+
+def test_slot_pairing_does_not_cross_pair_nearby_slots() -> None:
+    # Regression test: a naive "nearest from one side" greedy match can pair
+    # end-caps across two different closely-spaced slots instead of each
+    # slot's own two ends, silently producing two wrong slots with no
+    # warning. Two slots 40mm apart, each 20mm long, makes a wrong
+    # cross-pairing geometrically plausible if the pairing isn't required to
+    # be mutual.
+    two_slots_fixture = Path(__file__).parent / "fixtures" / "two_slots_part.step"
+    features = parse_step_file(two_slots_fixture)
+    slots = [f for f in features if f.type == FeatureType.SLOT]
+
+    assert len(slots) == 2
+    locations = sorted((s.nominal_location.x, s.nominal_location.y) for s in slots)
+    assert locations[0] == pytest.approx((-20.0, 0.0), abs=1e-2)
+    assert locations[1] == pytest.approx((20.0, 0.0), abs=1e-2)
+    for s in slots:
+        assert s.diameter == pytest.approx(6.0, abs=1e-2)

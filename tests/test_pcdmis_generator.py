@@ -21,6 +21,7 @@ from cmm_gen.models import (
 from cmm_gen.pcdmis_generator import (
     RoutineGenerationError,
     emit_alignment_block,
+    emit_safe_start_move,
     generate_routine,
 )
 
@@ -149,3 +150,42 @@ def test_full_pipeline_generates_prg_file(tmp_path, features, probe, envelope) -
     assert "DIM TRUEPOS1=TRUEPOS OF CYL_001" in text
     assert "SUB CheckAllDimensions()" in text
     assert "PART STATUS: ACCEPTED" in text
+
+
+def test_safe_start_move_respects_small_machine_envelope(features, probe) -> None:
+    # Regression test: emit_safe_start_move used to hardcode a 100mm safe Z
+    # regardless of the machine's actual travel limits, so a small-envelope
+    # machine (e.g. z max of 50mm) would get a program whose very first move
+    # already violates its travel limit.
+    small_envelope = MachineEnvelope(
+        x_travel_mm=(-100, 100), y_travel_mm=(-100, 100), z_travel_mm=(-50, 50)
+    )
+    routine = InspectionRoutine(
+        part_name="x",
+        features=[],
+        callouts=[],
+        datums=[],
+        approach_vectors=[],
+        probe_config=probe,
+        machine_envelope=small_envelope,
+    )
+    move = emit_safe_start_move(routine)
+    assert "100.0000" not in move
+    assert "50.0000" in move
+
+
+def test_safe_start_move_rejects_out_of_range_explicit_z(features, probe) -> None:
+    envelope = MachineEnvelope(
+        x_travel_mm=(-100, 100), y_travel_mm=(-100, 100), z_travel_mm=(-50, 50)
+    )
+    routine = InspectionRoutine(
+        part_name="x",
+        features=[],
+        callouts=[],
+        datums=[],
+        approach_vectors=[],
+        probe_config=probe,
+        machine_envelope=envelope,
+    )
+    with pytest.raises(RoutineGenerationError):
+        emit_safe_start_move(routine, safe_z=999.0)
