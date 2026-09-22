@@ -14,12 +14,40 @@ warn_unused_ignores = true
 namespace_packages = true
 exclude = ["tests/"]
 
+# No bundled type stubs / py.typed marker available for these.
+[[tool.mypy.overrides]]
+module = [
+    "cadquery.*",
+    "OCP.*",
+    "typer.*",
+    "rich.*",
+    "streamlit.*",
+    "pdf2image.*",
+    "plotly.*",
+]
+ignore_missing_imports = true
+
+# typer's @app.command()/@app.callback() decorators aren't fully typed, so
+# mypy can't infer the wrapped function's type under `strict` -- accepted
+# tradeoff for the CLI module specifically.
+[[tool.mypy.overrides]]
+module = "cmm_gen.cli"
+disallow_untyped_decorators = false
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "N"]
+# UP042: str+Enum (not enum.StrEnum) is used deliberately for pydantic v2
+# JSON-schema/serialization compatibility across the models.
+ignore = ["UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008: typer's documented idiom is typer.Option(...) as an argument
+# default; it isn't the "mutable default" footgun the rule targets.
+"cmm_gen/cli.py" = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,16 @@
+# CMM-Gen machine travel envelope + fixture keep-out zones.
+#
+# PLACEHOLDER default: generous travel limits with no fixture keep-out
+# boxes, so it never blocks a first run. Replace `default` (or add a
+# per-machine entry and pass --machine on the CLI) with your actual CMM's
+# travel limits and any fixture/tooling keep-out boxes before trusting the
+# collision results for production use.
+
+machines:
+  default:
+    verified: false
+    x_travel_mm: [-500.0, 500.0]
+    y_travel_mm: [-500.0, 500.0]
+    z_travel_mm: [-500.0, 500.0]
+    fixture_keepout_boxes: []
+    notes: "PLACEHOLDER envelope -- replace with actual machine travel limits."

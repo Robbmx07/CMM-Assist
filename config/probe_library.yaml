@@ -1,0 +1,63 @@
+# CMM-Gen probe library.
+#
+# Entries for the four probe/module configurations named for this shop:
+# HH-A-T5, HA-TM-31, HP-TBe, HT-TM-MF.
+#
+# IMPORTANT: the tip diameter, stylus length, index increment, and A/B angle
+# range values below are PLACEHOLDERS (typical Renishaw PH10-style indexable
+# head defaults). kinematics_validator.load_probe_config() logs a warning
+# whenever it loads an entry still marked `verified: false`. Replace these
+# with the actual datasheet values for each probe/module before trusting the
+# collision/reachability results for production use.
+
+probes:
+  HH-A-T5:
+    verified: false
+    head_type: indexable
+    tip:
+      diameter_mm: 2.0
+      stylus_length_mm: 20.0
+      material: ruby
+    extension_length_mm: 0.0
+    index_increment_deg: 7.5
+    a_angle_range_deg: [-90.0, 105.0]
+    b_angle_range_deg: [-180.0, 180.0]
+    notes: "PLACEHOLDER spec -- confirm tip/stylus/index angles against datasheet."
+
+  HA-TM-31:
+    verified: false
+    head_type: indexable
+    tip:
+      diameter_mm: 3.0
+      stylus_length_mm: 31.0
+      material: ruby
+    extension_length_mm: 0.0
+    index_increment_deg: 7.5
+    a_angle_range_deg: [-90.0, 105.0]
+    b_angle_range_deg: [-180.0, 180.0]
+    notes: "PLACEHOLDER spec -- confirm tip/stylus/index angles against datasheet."
+
+  HP-TBe:
+    verified: false
+    head_type: indexable
+    tip:
+      diameter_mm: 4.0
+      stylus_length_mm: 25.0
+      material: ruby
+    extension_length_mm: 0.0
+    index_increment_deg: 7.5
+    a_angle_range_deg: [-90.0, 105.0]
+    b_angle_range_deg: [-180.0, 180.0]
+    notes: "PLACEHOLDER spec -- confirm tip/stylus/index angles against datasheet."
+
+  HT-TM-MF:
+    verified: false
+    head_type: continuous_5axis
+    tip:
+      diameter_mm: 3.0
+      stylus_length_mm: 30.0
+      material: ruby
+    extension_length_mm: 0.0
+    a_angle_range_deg: [-90.0, 90.0]
+    b_angle_range_deg: [-180.0, 180.0]
+    notes: "PLACEHOLDER spec -- confirm continuous-head A/B travel against datasheet."

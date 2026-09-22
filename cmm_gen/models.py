@@ -102,6 +102,7 @@ class GDTCallout(BaseModel):
     mapped_feature_id: str | None = None  # set once matched to a CADFeature
     match_confidence: float | None = None  # 0-1, set by the matching step
     source_bbox_px: tuple[int, int, int, int] | None = None  # for visualizer overlay
+    defines_datum: str | None = None  # e.g. "A" if a datum feature symbol is attached
     notes: str | None = None
 
 
@@ -120,14 +121,28 @@ class ProbeTip(BaseModel):
 
 
 class ProbeConfig(BaseModel):
-    """Physical probe/head configuration used by kinematics_validator."""
+    """Physical probe/head configuration used by kinematics_validator.
+
+    - "fixed": the head holds one orientation (a_angle_deg/b_angle_deg) for
+      the whole routine; only approach vectors aligned with that single
+      orientation are reachable.
+    - "indexable": head can be indexed between discrete A/B positions on
+      `index_increment_deg` steps within `a_angle_range_deg`/
+      `b_angle_range_deg` (e.g. a Renishaw PH10-style head on 7.5deg steps).
+    - "continuous_5axis": head can orient continuously within the A/B range
+      (e.g. PH20/REVO-style), no index-step snapping.
+    """
 
     name: str
     head_type: Literal["fixed", "indexable", "continuous_5axis"]
     tip: ProbeTip
     extension_length_mm: float = 0.0
-    a_angle_deg: float = 0.0  # head tilt
-    b_angle_deg: float = 0.0  # head rotation
+    a_angle_deg: float = 0.0  # head tilt (used as-is when head_type == "fixed")
+    b_angle_deg: float = 0.0  # head rotation (used as-is when head_type == "fixed")
+    index_increment_deg: float = 7.5  # only meaningful when head_type == "indexable"
+    a_angle_range_deg: tuple[float, float] = (-90.0, 105.0)
+    b_angle_range_deg: tuple[float, float] = (-180.0, 180.0)
+    notes: str | None = None
 
 
 class MachineEnvelope(BaseModel):
