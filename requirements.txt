@@ -1,0 +1,36 @@
+# CMM-Gen: CAD + blueprint -> PC-DMIS inspection routine generator
+# Python 3.11+
+
+# --- CAD parsing (STEP files) ---
+# cadquery pulls in OCP (OpenCascade bindings) and is generally easier to install
+# than raw pythonocc-core. Swap for pythonocc-core if the shop standardizes on it.
+cadquery>=2.4,<3.0
+
+# --- Vision / GD&T extraction ---
+anthropic>=0.40.0
+pdf2image>=1.17.0          # rasterize blueprint PDFs to images for Claude Vision
+Pillow>=10.4.0
+
+# --- Data modeling / validation ---
+pydantic>=2.8,<3.0
+numpy>=1.26,<3.0
+
+# --- CLI ---
+typer>=0.12.0
+rich>=13.8.0
+
+# --- Local visualizer ---
+streamlit>=1.38.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+plotly>=5.24.0              # 3D scatter/mesh for approach-vector visualization
+
+# --- Logging / config ---
+loguru>=0.7.2
+PyYAML>=6.0.2
+
+# --- Dev / QA ---
+pytest>=8.3.0
+pytest-cov>=5.0.0
+mypy>=1.11.0
+ruff>=0.6.0
