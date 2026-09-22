@@ -178,6 +178,15 @@ def visualize() -> None:
     import subprocess
     import sys
 
+    if getattr(sys, "frozen", False):
+        console.print(
+            "[red]The visualizer isn't bundled into this packaged executable "
+            "(Streamlit doesn't package reliably into a single-file build).[/red]\n"
+            "Use the source install instead: see README.md 'Manual setup', then run\n"
+            "  python -m cmm_gen.cli visualize"
+        )
+        raise typer.Exit(code=1)
+
     app_path = Path(__file__).parent / "visualizer" / "app.py"
     subprocess.run([sys.executable, "-m", "streamlit", "run", str(app_path)], check=True)
 

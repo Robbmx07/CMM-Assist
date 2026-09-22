@@ -1,0 +1,44 @@
+name: Build Windows CLI executable
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - "**"
+    paths:
+      - "cmm_gen/**"
+      - "config/**"
+      - "requirements.txt"
+      - "packaging/cmm-gen.spec"
+      - ".github/workflows/build-windows-exe.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build standalone executable
+        run: pyinstaller packaging/cmm-gen.spec --distpath dist --workpath build --noconfirm
+
+      - name: Smoke test the built executable
+        run: |
+          .\dist\cmm-gen.exe parse-cad --step tests\fixtures\sample_part.step
+          .\dist\cmm-gen.exe parse-cad --step tests\fixtures\two_slots_part.step
+          Write-Host "Both smoke tests passed."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmm-gen-windows-exe
+          path: dist/cmm-gen.exe
+          if-no-files-found: error
